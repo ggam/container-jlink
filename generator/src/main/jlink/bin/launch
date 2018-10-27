@@ -1,0 +1,5 @@
+#!/bin/sh
+BASEDIR="$(pwd $0)/$(dirname $0)/../"
+cd $BASEDIR
+
+./bin/java -Djava.util.logging.config.file=conf/logging.properties -m eu.ggam.jlink.launcher/eu.ggam.jlink.launcher.Bootstrap
