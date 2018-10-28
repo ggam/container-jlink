@@ -1,6 +1,8 @@
 module eu.ggam.jlink.generator {
     exports eu.ggam.jlink.generator;
 
+    requires java.logging;
+    
     requires org.apache.maven.resolver;
     requires org.apache.maven.resolver.spi;
     requires org.apache.maven.resolver.util;

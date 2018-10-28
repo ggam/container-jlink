@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.zip.ZipFile;
 
 /**
@@ -16,15 +15,15 @@ import java.util.zip.ZipFile;
 public class WarTransformer {
 
     private final MavenRepositoryHelper repoHelper;
+    private final Path explodedWarPath;
 
-    private static final Path EXPLODED_WAR_PATH = Paths.get("target", "tmp", "exploded-war");
-
-    public WarTransformer(MavenRepositoryHelper repoHelper) {
+    public WarTransformer(MavenRepositoryHelper repoHelper, Path tempDirectory) {
         this.repoHelper = repoHelper;
+        this.explodedWarPath = tempDirectory.resolve("exploded-war");
     }
 
     public Path transformWar(String warMavenCoords) throws IOException {
-        Files.createDirectories(EXPLODED_WAR_PATH);
+        Files.createDirectories(explodedWarPath);
 
         Path warPath = repoHelper.getLocalPath(warMavenCoords);
 
@@ -33,10 +32,10 @@ public class WarTransformer {
                 try {
                     Path newFilePath;
                     if (e.getName().startsWith("WEB-INF/classes/")) {
-                        newFilePath = EXPLODED_WAR_PATH.resolve(e.getName().replace("WEB-INF/classes/", ""));
+                        newFilePath = explodedWarPath.resolve(e.getName().replace("WEB-INF/classes/", ""));
                     } else {
                          // Move everything outside WEB-INF/classes under _ROOT_
-                        newFilePath = EXPLODED_WAR_PATH.resolve("_ROOT_").resolve(e.getName());
+                        newFilePath = explodedWarPath.resolve("_ROOT_").resolve(e.getName());
                     }
 
                     if (e.isDirectory()) {
@@ -55,7 +54,7 @@ public class WarTransformer {
             });
         }
 
-        return EXPLODED_WAR_PATH;
+        return explodedWarPath;
     }
 
 }
