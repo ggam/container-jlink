@@ -8,6 +8,7 @@ import java.lang.module.ModuleReference;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Optional;
@@ -100,10 +101,21 @@ public class App {
                     }
                 });
 
-        // Replace launcher
+        // Replace launcher script
         Files.copy(
                 Paths.get("src", "main", "jlink", "bin", "launch"),
                 imageDestination.resolve(Paths.get("bin", "launch")));
+        
+        // Add server specific files
+        // TODO: bundle the server as a JMOD archive
+        Files.copy(
+                Paths.get("src", "main", "jlink", "conf", "app.properties"),
+                imageDestination.resolve(Paths.get("conf", "app.properties")));
+        
+        Files.copy(
+                Paths.get("src", "main", "jlink", "conf", "logging.properties"),
+                imageDestination.resolve(Paths.get("conf", "logging.properties")),
+                StandardCopyOption.REPLACE_EXISTING);
     }
     
     private String moduleReferencesToString(Set<ModuleReference> modules) {
