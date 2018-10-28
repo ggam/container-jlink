@@ -4,12 +4,9 @@ import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.util.zip.ZipFile;
 
 /**
@@ -26,7 +23,7 @@ public class WarTransformer {
         this.repoHelper = repoHelper;
     }
 
-    public Path transFormWar(String warMavenCoords) throws IOException {
+    public Path transformWar(String warMavenCoords) throws IOException {
         Files.createDirectories(EXPLODED_WAR_PATH);
 
         Path warPath = repoHelper.getLocalPath(warMavenCoords);
@@ -42,7 +39,6 @@ public class WarTransformer {
                         newFilePath = EXPLODED_WAR_PATH.resolve("_ROOT_").resolve(e.getName());
                     }
 
-                    System.out.println("- Copying " + e.getName() + " to " + newFilePath.toAbsolutePath());
                     if (e.isDirectory()) {
                         Files.createDirectories(newFilePath);
                     } else {
@@ -62,49 +58,4 @@ public class WarTransformer {
         return EXPLODED_WAR_PATH;
     }
 
-    private static class WarTransformerFileWalker extends SimpleFileVisitor<Path> {
-
-        private final Path patchedWar;
-        private final Path patchedWarRoot;
-
-        public WarTransformerFileWalker(Path patchedWarDestination) {
-            this.patchedWar = patchedWarDestination;
-            this.patchedWarRoot = patchedWarDestination.resolve("_ROOT_");
-        }
-
-        @Override
-        public FileVisitResult visitFile(Path file,
-                BasicFileAttributes attributes) {
-
-            try {
-                Path targetFile = patchedWar.resolve(patchedWarRoot.resolve(Paths.get("WEB-INF", "classes")).relativize(file));
-                if (!Files.exists(targetFile)) {
-                    Files.move(file, targetFile);
-                }
-            } catch (IOException ex) {
-                throw new UncheckedIOException(ex);
-            }
-
-            return FileVisitResult.CONTINUE;
-        }
-
-        @Override
-        public FileVisitResult preVisitDirectory(Path dir,
-                BasicFileAttributes attributes) {
-            if (EXPLODED_WAR_PATH.equals(dir)) {
-                return FileVisitResult.CONTINUE;
-            }
-
-            try {
-                Path newDir = patchedWar.resolve(patchedWarRoot.resolve(Paths.get("WEB-INF", "classes")).relativize(dir));
-                if (!Files.exists(newDir)) {
-                    Files.createDirectories(newDir);
-                }
-            } catch (IOException ex) {
-                throw new UncheckedIOException(ex);
-            }
-
-            return FileVisitResult.CONTINUE;
-        }
-    }
 }

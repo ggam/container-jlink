@@ -11,6 +11,7 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Optional;
+import java.util.Set;
 import java.util.spi.ToolProvider;
 import static java.util.stream.Collectors.joining;
 
@@ -43,8 +44,7 @@ public class App {
     public void createImage(String warCoordinates, Path imageDestination) throws Exception {
         MavenRepositoryHelper repoHelper = new MavenRepositoryHelper(m2Home);
 
-        Path transformedWar = new WarTransformer(repoHelper).
-                transFormWar(warCoordinates.replace("jar:java9war", "war"));
+        Path transformedWar = new WarTransformer(repoHelper).transformWar(warCoordinates);
 
         MavenDependency serverDependency = new MavenDependency(repoHelper, "eu.ggam:container-impl:1.0-SNAPSHOT");
         MavenDependency launcherDependency = new MavenDependency(repoHelper, "eu.ggam.jlink:launcher:1.0-SNAPSHOT");
@@ -58,9 +58,9 @@ public class App {
                 .forEach(File::delete);
 
         System.out.println("--------------");
-        System.out.println("App modules: " + appDependency.getModuleReferences());
-        System.out.println("Server modules: " + serverDependency.getModuleReferences());
-        System.out.println("Launcher modules: " + launcherDependency.getModuleReferences());
+        System.out.println("App modules: " + moduleReferencesToString(appDependency.getModuleReferences()));
+        System.out.println("Server modules: " + moduleReferencesToString(serverDependency.getModuleReferences()));
+        System.out.println("Launcher modules: " + moduleReferencesToString(launcherDependency.getModuleReferences()));
 
         AggregatedImage aggregatedImage = new AggregatedImage();
         aggregatedImage.addToBaseLayer(appDependency);
@@ -68,13 +68,13 @@ public class App {
         aggregatedImage.addToServerLayer(serverDependency);
 
         System.out.println("--------------");
-        System.out.println("Aggregated boot layer: " + aggregatedImage.getBaseModules());
-        System.out.println("Aggregated server layer: " + aggregatedImage.getServerModules());
+        System.out.println("Aggregated boot layer: " + moduleReferencesToString(aggregatedImage.getBaseModules()));
+        System.out.println("Aggregated server layer: " + moduleReferencesToString(aggregatedImage.getServerModules()));
 
         String[] jlinkArgs = new String[]{
             "--verbose",
             "--module-path", aggregatedImage.getJlinkModulePath(),
-            "--add-modules", aggregatedImage.getBaseModules().stream().map(ModuleReference::descriptor).map(ModuleDescriptor::name).collect(joining(",")),
+            "--add-modules", moduleReferencesToString(aggregatedImage.getBaseModules()),
             "--compress", "2",
             "--vm=server",
             "--output", imageDestination.toString()
@@ -83,6 +83,7 @@ public class App {
         System.out.println("--------------");
         System.out.println("Invoking Jlink with arguments: " + Arrays.toString(jlinkArgs));
         ToolProvider jlink = ToolProvider.findFirst("jlink").get();
+        System.out.println("--------------");
         jlink.run(System.out, System.err, jlinkArgs);
 
         Path server = Files.createDirectories(imageDestination.resolve(Paths.get("lib", "runtime-impl")));
@@ -103,6 +104,13 @@ public class App {
         Files.copy(
                 Paths.get("src", "main", "jlink", "bin", "launch"),
                 imageDestination.resolve(Paths.get("bin", "launch")));
+    }
+    
+    private String moduleReferencesToString(Set<ModuleReference> modules) {
+        return modules.stream().
+                map(ModuleReference::descriptor).
+                map(ModuleDescriptor::name).
+                collect(joining(","));
     }
 
 }

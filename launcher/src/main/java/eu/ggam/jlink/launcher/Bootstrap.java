@@ -4,7 +4,6 @@ import java.lang.module.Configuration;
 import java.lang.module.ModuleDescriptor;
 import java.lang.module.ModuleFinder;
 import java.lang.module.ModuleReference;
-import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
@@ -24,15 +23,17 @@ public class Bootstrap {
 
     private static final Path SERVER_IMPL = Paths.get("lib", "runtime-impl");
 
-    public static void main(String... args) throws NoSuchMethodException, InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException, InvocationTargetException {
+    public static void main(String... args) throws Exception {
         ModuleFinder serverFinder = ModuleFinder.of(SERVER_IMPL);
         Set<String> serverModuleNames = serverFinder.findAll().
                 stream().
                 map(ModuleReference::descriptor).
                 map(ModuleDescriptor::name).
                 collect(toSet());
-        
-        LOGGER.log(Level.INFO, "Server modules at {0}:\n{1}", new Object[]{SERVER_IMPL, serverModuleNames.stream().map(m -> "- " + m + "\n").collect(joining())});
+
+        LOGGER.log(Level.INFO, "Server modules at {0}:\n{1}", new Object[]{
+            SERVER_IMPL,
+            serverModuleNames.stream().map(m -> "- " + m + "\n").collect(joining())});
 
         serverModuleNames.add(Bootstrap.class.getModule().getName());
 
@@ -45,7 +46,12 @@ public class Bootstrap {
                 location().
                 get());
 
-        Configuration configuration = ModuleLayer.boot().configuration().resolve(ModuleFinder.compose(serverFinder, ModuleFinder.of(thisModuleLocation)), ModuleFinder.ofSystem(), serverModuleNames);
+        Configuration configuration = ModuleLayer.boot().
+                configuration().
+                resolve(
+                        ModuleFinder.compose(serverFinder, ModuleFinder.of(thisModuleLocation)),
+                        ModuleFinder.ofSystem(),
+                        serverModuleNames);
         ModuleLayer serverLayer = ModuleLayer.defineModulesWithOneLoader(configuration, List.of(ModuleLayer.boot()), ClassLoader.getSystemClassLoader()).layer();
 
         Module thisModuleServerLayer = serverLayer.findModule(Bootstrap.class.getModule().getName()).get();
@@ -54,11 +60,15 @@ public class Bootstrap {
             throw new IllegalStateException("Bootstrap Module not loaded from server layer!!");
         }
 
-        Class<?> forName = Class.forName(thisModuleServerLayer, ServerFinder.class.getName());
-
-        Object newInstance = forName.getConstructor().newInstance();
-
         String warModuleName = System.getProperty("eu.ggam.jlink.war_module");
+        ModuleLayer.boot().
+                findModule(warModuleName).
+                orElseThrow(() -> {
+                    throw new IllegalArgumentException(warModuleName + " module not found on boot layer");
+                });
+
+        Class<?> forName = Class.forName(thisModuleServerLayer, ServerFinder.class.getName());
+        Object newInstance = forName.getConstructor().newInstance();
 
         forName.getMethod("find", String.class).invoke(newInstance, warModuleName);
     }

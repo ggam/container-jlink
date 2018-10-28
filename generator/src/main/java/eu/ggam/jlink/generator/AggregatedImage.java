@@ -14,7 +14,7 @@ import static java.util.stream.Collectors.toSet;
 public class AggregatedImage {
 
     private final Set<Path> modulePath = new HashSet<>();
-    
+
     private final Set<ModuleReference> baseModules = new HashSet<>();
     private final Set<ModuleReference> serverModules = new HashSet<>();
 
@@ -30,8 +30,12 @@ public class AggregatedImage {
                         stream().
                         filter(this::isJreModule).
                         collect(toSet()));
-        
-        serverModules.addAll(mavenDependency.getModuleReferences());
+
+        serverModules.addAll(mavenDependency.getModuleReferences().
+                stream().
+                filter(m -> !isJreModule(m)).
+                collect(toSet()));
+
         modulePath.addAll(mavenDependency.getJarLocations());
     }
 
@@ -39,7 +43,7 @@ public class AggregatedImage {
         String name = module.descriptor().name();
         return name.startsWith("java.") || name.startsWith("javax.") || name.startsWith("jdk.");
     }
-    
+
     public Set<ModuleReference> getBaseModules() {
         return new HashSet<>(baseModules);
     }
